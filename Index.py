@@ -92,6 +92,167 @@ def usun_lek():
     ID.delete(0, END)
     NazwaDoUsuniecia.delete(0, END)
 
+def rejestruj_uzytkownika():
+    imie_nazwisko = ImieINazwisko.get().strip()
+    email = Email.get().strip()
+    telefon = Telefon.get().strip()
+    ulica = Ulica.get().strip()
+    miasto = Miasto.get().strip()
+    panstwo = Panstwo.get().strip()
+
+    # Sprawdzenie czy pola są wypełnione
+    if not all([imie_nazwisko, email, telefon, ulica, miasto, panstwo]):
+        print("Uzupełnij wszystkie pola.")
+        return
+
+    # Ścieżki do plików
+    customer_file = "customer.csv"
+    address_file = "address.csv"
+
+    # Wczytanie lub utworzenie DataFrame
+    if os.path.exists(customer_file):
+        df_customer = pd.read_csv(customer_file)
+    else:
+        df_customer = pd.DataFrame(columns=["ID", "NAME", "E-MAIL", "PHONE", "CREATED", "UPDATED"])
+
+    if os.path.exists(address_file):
+        df_address = pd.read_csv(address_file)
+    else:
+        df_address = pd.DataFrame(columns=["ID", "STREET", "CITY", "COUNTRY"])
+
+    # Nadanie nowego ID
+    if df_customer.empty and df_address.empty:
+        new_id = 1
+    else:
+        new_id = max(
+            df_customer["ID"].max() if not df_customer.empty else 0,
+            df_address["ID"].max() if not df_address.empty else 0
+        ) + 1
+
+    # Data rejestracji
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Dodanie do DataFrame'ów
+    new_customer = {
+        "ID": new_id,
+        "NAME": imie_nazwisko,
+        "E-MAIL": email,
+        "PHONE": telefon,
+        "CREATED": now,
+        "UPDATED": now
+    }
+
+    new_address = {
+        "ID": new_id,
+        "STREET": ulica,
+        "CITY": miasto,
+        "COUNTRY": panstwo
+    }
+
+    df_customer = pd.concat([df_customer, pd.DataFrame([new_customer])], ignore_index=True)
+    df_address = pd.concat([df_address, pd.DataFrame([new_address])], ignore_index=True)
+
+    # Zapis do plików CSV
+    df_customer.to_csv(customer_file, index=False)
+    df_address.to_csv(address_file, index=False)
+
+    # Wyczyść pola
+    ImieINazwisko.delete(0, END)
+    Email.delete(0, END)
+    Telefon.delete(0, END)
+    Ulica.delete(0, END)
+    Miasto.delete(0, END)
+    Panstwo.delete(0, END)
+
+def usun_uzytkownika():
+    customer_file = "customer.csv"
+    address_file = "address.csv"
+
+    if not os.path.exists(customer_file) or not os.path.exists(address_file):
+        return  # pliki nie istnieją
+
+    df_customer = pd.read_csv(customer_file)
+    df_address = pd.read_csv(address_file)
+
+    if var1.get() == 1:  # Usuwanie po ID
+        try:
+            id_do_usuniecia = int(IDUzytkownika.get())
+            df_customer = df_customer[df_customer["ID"] != id_do_usuniecia]
+            df_address = df_address[df_address["ID"] != id_do_usuniecia]
+        except ValueError:
+            return  # nieprawidłowe ID
+
+    elif var1.get() == 2:  # Usuwanie po nazwie
+        nazwa = NazwaDoUsunieciaUzytkownika.get().strip().lower()
+        # Znajdź wszystkie ID użytkowników o tej nazwie
+        ids_do_usuniecia = df_customer[df_customer["NAME"].str.lower() == nazwa]["ID"].tolist()
+        df_customer = df_customer[~df_customer["ID"].isin(ids_do_usuniecia)]
+        df_address = df_address[~df_address["ID"].isin(ids_do_usuniecia)]
+
+    # Zapisz zmodyfikowane dane
+    df_customer.to_csv(customer_file, index=False)
+    df_address.to_csv(address_file, index=False)
+
+    # Wyczyść pola
+    IDUzytkownika.delete(0, END)
+    NazwaDoUsunieciaUzytkownika.delete(0, END)
+
+def edytuj_uzytkownika():
+    customer_file = "customer.csv"
+    address_file = "address.csv"
+
+    if not os.path.exists(customer_file) or not os.path.exists(address_file):
+        print("Brak plików customer.csv lub address.csv")
+        return
+
+    df_customer = pd.read_csv(customer_file)
+    df_address = pd.read_csv(address_file)
+
+    if var2.get() == 1:
+        try:
+            identyfikator = int(IDUzytkownikaZmiana.get())
+        except ValueError:
+            print("Nieprawidłowe ID.")
+            return
+    elif var2.get() == 2:
+        nazwa = NazwaDoUsunieciaUzytkownikaZmiana.get().strip().lower()
+        pasujace = df_customer[df_customer["NAME"].str.lower() == nazwa]
+        if pasujace.empty:
+            print("Nie znaleziono użytkownika o tej nazwie.")
+            return
+        identyfikator = pasujace.iloc[0]["ID"]
+    else:
+        print("Nie wybrano sposobu identyfikacji.")
+        return
+
+    # Dane nowe
+    nowe_imie = ImieINazwiskoZmiana.get().strip()
+    nowy_email = EmailZmiana.get().strip()
+    nowy_telefon = TelefonZmiana.get().strip()
+    nowa_ulica = UlicaZmiana.get().strip()
+    nowe_miasto = MiastoZmiana.get().strip()
+    nowe_panstwo = PanstwoZmiana.get().strip()
+
+    teraz = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Aktualizacja danych
+    df_customer.loc[df_customer["ID"] == identyfikator, ["NAME", "E-MAIL", "PHONE", "UPDATED"]] = [
+        nowe_imie, nowy_email, nowy_telefon, teraz
+    ]
+    df_address.loc[df_address["ID"] == identyfikator, ["STREET", "CITY", "COUNTRY"]] = [
+        nowa_ulica, nowe_miasto, nowe_panstwo
+    ]
+
+    # Zapis
+    df_customer.to_csv(customer_file, index=False)
+    df_address.to_csv(address_file, index=False)
+
+    # Czyszczenie pól
+    for entry in [IDUzytkownikaZmiana, NazwaDoUsunieciaUzytkownikaZmiana,
+                  ImieINazwiskoZmiana, EmailZmiana, TelefonZmiana,
+                  UlicaZmiana, MiastoZmiana, PanstwoZmiana]:
+        entry.delete(0, END)
+
 #Dodanie leku
 Label(okno, text="Dodanie leku: ").grid(row=1, column=1)
 
@@ -150,7 +311,7 @@ Label(okno, text="Państwo:").grid(row=7, column=11)
 Panstwo = Entry(okno,)
 Panstwo.grid(row=7, column=12)
 
-Button(okno , text = "Rejestruj").grid(row = 7,column = 13) #command = Rejestracja,
+Button(okno , text = "Rejestruj", command=rejestruj_uzytkownika).grid(row = 7,column = 13)
 
 # Usunięcie użytkownika
 Label(okno, text="Usunięcie użytkownika: ").grid(row=8, column=1)
@@ -164,7 +325,7 @@ Radiobutton(okno, text="Nazwa:", variable=var1, value=2).grid(row=9, column=3)
 NazwaDoUsunieciaUzytkownika = Entry(okno)
 NazwaDoUsunieciaUzytkownika.grid(row=9, column=4)
 
-Button(okno, text="Usuń").grid(row=9, column=5)
+Button(okno, text="Usuń", command=usun_uzytkownika).grid(row=9, column=5)
 
 #Edycja użytkownika
 
@@ -203,7 +364,7 @@ Label(okno, text="Państwo:").grid(row=12, column=11)
 PanstwoZmiana = Entry(okno)
 PanstwoZmiana.grid(row=12, column=12)
 
-Button(okno, text="Zmień").grid(row=12, column=13)
+Button(okno, text="Zmień", command=edytuj_uzytkownika).grid(row=12, column=13)
 
 #koniec okna
 okno.mainloop() # generowanie obiektów okna
