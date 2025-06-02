@@ -92,6 +92,14 @@ def usun_lek():
     ID.delete(0, END)
     NazwaDoUsuniecia.delete(0, END)
 
+###Tworzenie pliku z historią leków pacjenta
+def utworz_txt_DATABASE(identyfikator,ImieINazwisko):
+    os.makedirs("DATABASE",exist_ok=True)
+    plik_txt=f"DATABASE/{identyfikator}.txt"
+    text=(f"Historia zamówień dla {identyfikator} , {ImieINazwisko}\n")
+    with open(plik_txt, "w", encoding="utf-8") as f:
+        f.write(text)
+
 def rejestruj_uzytkownika():
     imie_nazwisko = ImieINazwisko.get().strip()
     email = Email.get().strip()
@@ -156,6 +164,9 @@ def rejestruj_uzytkownika():
     df_customer.to_csv(customer_file, index=False)
     df_address.to_csv(address_file, index=False)
 
+    ##Wywołanie fukcji tworzącej plik z historią leków
+    utworz_txt_DATABASE(new_id,imie_nazwisko)
+
     # Wyczyść pola
     ImieINazwisko.delete(0, END)
     Email.delete(0, END)
@@ -163,6 +174,7 @@ def rejestruj_uzytkownika():
     Ulica.delete(0, END)
     Miasto.delete(0, END)
     Panstwo.delete(0, END)
+
 
 def usun_uzytkownika():
     customer_file = "customer.csv"
@@ -252,6 +264,49 @@ def edytuj_uzytkownika():
                   ImieINazwiskoZmiana, EmailZmiana, TelefonZmiana,
                   UlicaZmiana, MiastoZmiana, PanstwoZmiana]:
         entry.delete(0, END)
+
+def dodanie_historii_leków(nazwa,ilosc,recepta,data_zakupu,data_waznosci,id):
+    plik_txt=f"DATABASE/{id}.txt"
+    text = (f"Zakupiono lek {nazwa} w ilości {ilosc} na receptę: {recepta} zakupiony:{data_zakupu} ważny do: {data_waznosci}\n")
+    with open(plik_txt, "a", encoding="utf-8") as f:
+        f.write(text)
+
+def zamow_lek():
+    nazwa_leku = NazwaLeku.get().strip()
+    ID_uzytkownika = IDZmnienna.get().strip()
+    ilosc_zamowienie=Ilosc.get().strip()
+    #zamiana stringa na int
+    ilosc_zamowienie = int(ilosc_zamowienie)
+    df=pd.read_excel("drugs.xlsx")
+    ##szukanie czy lek istnieje na liście
+    lek=df[df["DRUG"]==nazwa_leku]
+    if lek.empty:
+        print("Nie ma takiego leku w bazie")
+        return
+    znaleziony_lek=lek.iloc[0].to_dict()
+    modyfikowana_ilosc=lek.index[0]
+    ilosc_na_stanie=int(znaleziony_lek["NO_PACKAGES_AVAILABLE"])
+
+    ##sprawdzenie czy jest lek na stanie
+    if ilosc_zamowienie>ilosc_na_stanie:
+        print("Za mało na stanie!")
+        return
+    ##aktulizacja ilości w execelu
+    df.loc[modyfikowana_ilosc,"NO_PACKAGES_AVAILABLE"]=ilosc_na_stanie-ilosc_zamowienie
+    df.to_excel("drugs.xlsx",index=False)
+
+    ####Dane znalezionego leku z "drugs.xlsx"
+    nazwa=znaleziony_lek["DRUG"]
+    recepta=znaleziony_lek["ON_RECEPT"]
+    data_waznosci=znaleziony_lek["DATE"]
+    data_zakupu=datetime.now().strftime("%Y-%m-%d")
+    plik_txt = f"DATABASE/{ID_uzytkownika}.txt"
+    ## wywołanie funkcji do zapisu zamówienia do txt
+    dodanie_historii_leków(nazwa,ilosc_zamowienie,recepta,data_zakupu,data_waznosci,ID_uzytkownika)
+    ###czyszczenie danych
+    NazwaLeku.delete(0, END)
+    IDZmnienna.delete(0, END)
+    Ilosc.delete(0, END)
 
 #Dodanie leku
 Label(okno, text="Dodanie leku: ").grid(row=1, column=1)
@@ -366,5 +421,17 @@ PanstwoZmiana.grid(row=12, column=12)
 
 Button(okno, text="Zmień", command=edytuj_uzytkownika).grid(row=12, column=13)
 
+###Zamawianie leku
+Label(okno,text="Zamów lek: ").grid(row=13,column=1)
+Label(okno, text="Nazwa leku: ").grid(row=14,column=1)
+NazwaLeku=Entry(okno)
+NazwaLeku.grid(row=14, column=2)
+Label(okno,text="ID: ").grid(row=14, column=3)
+IDZmnienna=Entry(okno)
+IDZmnienna.grid(row=14, column=4)
+Label(okno,text="Ilość: ").grid(row=14, column=5)
+Ilosc=Entry(okno)
+Ilosc.grid(row=14, column=6)
+Button(okno, text="potwierdź",command=zamow_lek).grid(row=14,column=7)
 #koniec okna
 okno.mainloop() # generowanie obiektów okna
