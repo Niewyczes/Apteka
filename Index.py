@@ -5,6 +5,7 @@ import pandas as pd
 from PIL import Image, ImageTk
 import os
 from datetime import datetime
+from tkinter import messagebox
 
 okno = Tk() # tworzenie głównego okna
 okno.title("Apteka") # tytuł okna
@@ -107,12 +108,21 @@ def rejestruj_uzytkownika():
     ulica = Ulica.get().strip()
     miasto = Miasto.get().strip()
     panstwo = Panstwo.get().strip()
-
+    ## Sprawdzenie czy są tylko litery
+    if not imie_nazwisko.isalpha():
+        messagebox.showerror("Błąd", "Imię i Nazwisko muszą zawierać tylko litery!")
+        return
+    ## Sprawdzenie telefonu czy zawiera same cyfry i ma długość 9
+    if not telefon.isdigit():
+        messagebox.showerror("Błąd","Telefon musi zawierać tylko liczby")
+        return
+    if len(telefon) !=9:
+        messagebox.showerror("Błąd","Numer musi zawierać 9 cyfr!")
+        return
     # Sprawdzenie czy pola są wypełnione
     if not all([imie_nazwisko, email, telefon, ulica, miasto, panstwo]):
-        print("Uzupełnij wszystkie pola.")
+        messagebox.showerror("Uwaga", "Uzupełnij wszystkie pola.")
         return
-
     # Ścieżki do plików
     customer_file = "customer.csv"
     address_file = "address.csv"
