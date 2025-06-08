@@ -4,9 +4,10 @@ import requests
 import pandas as pd
 from PIL import Image, ImageTk
 import os
-from datetime import datetime
-from tkinter import messagebox
-
+from datetime import datetime,timedelta
+from tkinter import messagebox, simpledialog
+import random,string
+HASLO_ADMIN="BigPharma123!"
 okno = Tk() # tworzenie głównego okna
 okno.title("Apteka") # tytuł okna
 okno.geometry("1200x600") # rozmiar okna
@@ -102,89 +103,96 @@ def utworz_txt_DATABASE(identyfikator,ImieINazwisko):
         f.write(text)
 
 def rejestruj_uzytkownika():
-    imie_nazwisko = ImieINazwisko.get().strip()
-    email = Email.get().strip()
-    telefon = Telefon.get().strip()
-    ulica = Ulica.get().strip()
-    miasto = Miasto.get().strip()
-    panstwo = Panstwo.get().strip()
-    ## Sprawdzenie czy są tylko litery
-    if not imie_nazwisko.isalpha():
-        messagebox.showerror("Błąd", "Imię i Nazwisko muszą zawierać tylko litery!")
+    try:
+        imie_nazwisko = ImieINazwisko.get().strip()
+        email = Email.get().strip()
+        telefon = Telefon.get().strip()
+        ulica = Ulica.get().strip()
+        miasto = Miasto.get().strip()
+        panstwo = Panstwo.get().strip()
+        ## Sprawdzenie czy są tylko litery z uwzględnioną spacją pomiędzy imieniem i nazwiskiem
+        if not imie_nazwisko.replace(" "," ").isalpha():
+            messagebox.showerror("Błąd", "Imię i Nazwisko muszą zawierać tylko litery!")
+            return
+        ## Sprawdzenie telefonu czy zawiera same cyfry i ma długość 9
+        if not telefon.isdigit():
+            messagebox.showerror("Błąd","Telefon musi zawierać tylko liczby")
+            return
+        if len(telefon) !=9:
+            messagebox.showerror("Błąd","Numer musi zawierać 9 cyfr!")
+            return
+        # Sprawdzenie czy pola są wypełnione
+        if not all([imie_nazwisko, email, telefon, ulica, miasto, panstwo]):
+            messagebox.showerror("Uwaga", "Uzupełnij wszystkie pola.")
+            return
+    except Exception as e:
+        messagebox.showerror("Błąd", f"Wystąpił błąd: {e}")
         return
-    ## Sprawdzenie telefonu czy zawiera same cyfry i ma długość 9
-    if not telefon.isdigit():
-        messagebox.showerror("Błąd","Telefon musi zawierać tylko liczby")
-        return
-    if len(telefon) !=9:
-        messagebox.showerror("Błąd","Numer musi zawierać 9 cyfr!")
-        return
-    # Sprawdzenie czy pola są wypełnione
-    if not all([imie_nazwisko, email, telefon, ulica, miasto, panstwo]):
-        messagebox.showerror("Uwaga", "Uzupełnij wszystkie pola.")
-        return
-    # Ścieżki do plików
-    customer_file = "customer.csv"
-    address_file = "address.csv"
+    try:
+        # Ścieżki do plików
+        customer_file = "customer.csv"
+        address_file = "address.csv"
 
-    # Wczytanie lub utworzenie DataFrame
-    if os.path.exists(customer_file):
-        df_customer = pd.read_csv(customer_file)
-    else:
-        df_customer = pd.DataFrame(columns=["ID", "NAME", "E-MAIL", "PHONE", "CREATED", "UPDATED"])
+        # Wczytanie lub utworzenie DataFrame
+        if os.path.exists(customer_file):
+            df_customer = pd.read_csv(customer_file)
+        else:
+            df_customer = pd.DataFrame(columns=["ID", "NAME", "E-MAIL", "PHONE", "CREATED", "UPDATED"])
 
-    if os.path.exists(address_file):
-        df_address = pd.read_csv(address_file)
-    else:
-        df_address = pd.DataFrame(columns=["ID", "STREET", "CITY", "COUNTRY"])
+        if os.path.exists(address_file):
+            df_address = pd.read_csv(address_file)
+        else:
+            df_address = pd.DataFrame(columns=["ID", "STREET", "CITY", "COUNTRY"])
 
-    # Nadanie nowego ID
-    if df_customer.empty and df_address.empty:
-        new_id = 1
-    else:
-        new_id = max(
-            df_customer["ID"].max() if not df_customer.empty else 0,
-            df_address["ID"].max() if not df_address.empty else 0
-        ) + 1
+        # Nadanie nowego ID
+        if df_customer.empty and df_address.empty:
+            new_id = 1
+        else:
+            new_id = max(
+                df_customer["ID"].max() if not df_customer.empty else 0,
+                df_address["ID"].max() if not df_address.empty else 0
+            ) + 1
 
-    # Data rejestracji
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Data rejestracji
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Dodanie do DataFrame'ów
-    new_customer = {
-        "ID": new_id,
-        "NAME": imie_nazwisko,
-        "E-MAIL": email,
-        "PHONE": telefon,
-        "CREATED": now,
-        "UPDATED": now
-    }
+        # Dodanie do DataFrame'ów
+        new_customer = {
+            "ID": new_id,
+            "NAME": imie_nazwisko,
+            "E-MAIL": email,
+            "PHONE": telefon,
+            "CREATED": now,
+            "UPDATED": now
+        }
 
-    new_address = {
-        "ID": new_id,
-        "STREET": ulica,
-        "CITY": miasto,
-        "COUNTRY": panstwo
-    }
+        new_address = {
+            "ID": new_id,
+            "STREET": ulica,
+            "CITY": miasto,
+            "COUNTRY": panstwo
+        }
 
-    df_customer = pd.concat([df_customer, pd.DataFrame([new_customer])], ignore_index=True)
-    df_address = pd.concat([df_address, pd.DataFrame([new_address])], ignore_index=True)
+        df_customer = pd.concat([df_customer, pd.DataFrame([new_customer])], ignore_index=True)
+        df_address = pd.concat([df_address, pd.DataFrame([new_address])], ignore_index=True)
 
-    # Zapis do plików CSV
-    df_customer.to_csv(customer_file, index=False)
-    df_address.to_csv(address_file, index=False)
+        # Zapis do plików CSV
+        df_customer.to_csv(customer_file, index=False)
+        df_address.to_csv(address_file, index=False)
 
-    ##Wywołanie fukcji tworzącej plik z historią leków
-    utworz_txt_DATABASE(new_id,imie_nazwisko)
+        ##Wywołanie fukcji tworzącej plik z historią leków
+        utworz_txt_DATABASE(new_id,imie_nazwisko)
 
-    # Wyczyść pola
-    ImieINazwisko.delete(0, END)
-    Email.delete(0, END)
-    Telefon.delete(0, END)
-    Ulica.delete(0, END)
-    Miasto.delete(0, END)
-    Panstwo.delete(0, END)
-
+        # Wyczyść pola
+        ImieINazwisko.delete(0, END)
+        Email.delete(0, END)
+        Telefon.delete(0, END)
+        Ulica.delete(0, END)
+        Miasto.delete(0, END)
+        Panstwo.delete(0, END)
+        messagebox.showinfo("Sukces","Zarejestrowano użytkownika!")
+    except Exception as e:
+        messagebox.showerror("Błąd","Nie zapisano danych")
 
 def usun_uzytkownika():
     customer_file = "customer.csv"
@@ -274,19 +282,80 @@ def edytuj_uzytkownika():
                   ImieINazwiskoZmiana, EmailZmiana, TelefonZmiana,
                   UlicaZmiana, MiastoZmiana, PanstwoZmiana]:
         entry.delete(0, END)
-
+###funkcja która otwiera nowe okno i prosi o dane do recepty
+def wystaw_receptę():
+    ####Wymagane hasło żeby móc wystawiać recepty
+    haslo=simpledialog.askstring("Uwaga","Podaj hasło:")
+    if haslo !=HASLO_ADMIN:
+        messagebox.showerror("Błąd","Złe hasło")
+        return
+    ###utworzenie nowego okna
+    okno_recepta=Toplevel(okno)
+    okno_recepta.title("Dodaj receptę")
+    okno_recepta.geometry("300x200")
+    Label(okno_recepta,text="Podaj ID pacjenta:").grid(row=0,column=0)
+    IDEntry=Entry(okno_recepta)
+    IDEntry.grid(row=0,column=1)
+    Label(okno_recepta,text="Podaj leki, oddziel przecinkiem:").grid(row=1,column=0)
+    LekiEntry=Entry(okno_recepta)
+    LekiEntry.grid(row=2,column=0)
+    ###dodanie fukcji która dodaje recepte
+    def dodaj_receptę():
+        ID_uzytkownika=IDEntry.get().strip()
+        leki=LekiEntry.get().strip()
+        ###Sprawdzenie czy są uzupełnione pola
+        if not ID_uzytkownika or not leki:
+            messagebox.showerror("Błąd","Proszę uzupłnić dane")
+            return
+        ##Generowanie 8 znakowego kodu recepty z  dużych liter i liczb
+        kod_recepty=""
+        for _ in range(8):
+            kod_recepty +=random.choice(string.ascii_uppercase+string.digits)
+        plik_recepty='recepty.xlsx'
+        ###Dodanie dat wystawienia i ważności
+        data_wystawienia=datetime.now()
+        data_waznosci=data_wystawienia+timedelta(days=30)
+        ##Dodanie wpisu do pliku recepty excel
+        dodaj_wpis={
+            "ID": ID_uzytkownika,
+            "leki": leki,
+            "kod_recepty": kod_recepty,
+            "Data wystawienia":data_wystawienia.strftime("%Y-%m-%d %H:%M:%S"),
+            "Ważna do":data_waznosci.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        try:
+            try:
+                df=pd.read_excel(plik_recepty)
+            except FileNotFoundError:
+                ###jeśli nie istnieje plik tworzy nowy
+                df=pd.DataFrame(columns=["ID", "leki", "kod_recepty","Data wystawienia","Ważna do"])
+            df=pd.concat([df,pd.DataFrame([dodaj_wpis])],ignore_index=True)
+            df.to_excel(plik_recepty,index=False)
+            messagebox.showinfo("Udało się",f"Recepta dodana: {kod_recepty}")
+            IDEntry.delete(0, END)
+            LekiEntry.delete(0, END)
+        except Exception as e:
+            messagebox.showerror("Błąd","Nie udało się wystawić recepty!")
+    Button(okno_recepta,text="Dodaj receptę",command=dodaj_receptę).grid(row=3,column=1)
 def dodanie_historii_leków(nazwa,ilosc,recepta,data_zakupu,data_waznosci,id):
     plik_txt=f"DATABASE/{id}.txt"
     text = (f"Zakupiono lek {nazwa} w ilości {ilosc} na receptę: {recepta} zakupiony:{data_zakupu} ważny do: {data_waznosci}\n")
     with open(plik_txt, "a", encoding="utf-8") as f:
         f.write(text)
 
-def zamow_lek():
+def zakup_lek():
     nazwa_leku = NazwaLeku.get().strip()
     ID_uzytkownika = IDZmnienna.get().strip()
     ilosc_zamowienie=Ilosc.get().strip()
-    #zamiana stringa na int
-    ilosc_zamowienie = int(ilosc_zamowienie)
+    ##dodanie obsługi błędów
+    if not all([nazwa_leku, ID_uzytkownika,ilosc_zamowienie]):
+        messagebox.showerror("Błąd","Muszą być uzupełnione wszystkie pola")
+    try:
+        # zamiana stringa na int
+        ilosc_zamowienie = int(ilosc_zamowienie)
+    except ValueError:
+        messagebox.showerror("Błąd","Musi być podana liczba całkowita")
+        return
     df=pd.read_excel("drugs.xlsx")
     ##szukanie czy lek istnieje na liście
     lek=df[df["DRUG"]==nazwa_leku]
@@ -431,7 +500,7 @@ PanstwoZmiana.grid(row=12, column=12)
 
 Button(okno, text="Zmień", command=edytuj_uzytkownika).grid(row=12, column=13)
 
-###Zamawianie leku
+###Zakup leku
 Label(okno,text="Zamów lek: ").grid(row=13,column=1)
 Label(okno, text="Nazwa leku: ").grid(row=14,column=1)
 NazwaLeku=Entry(okno)
@@ -442,6 +511,10 @@ IDZmnienna.grid(row=14, column=4)
 Label(okno,text="Ilość: ").grid(row=14, column=5)
 Ilosc=Entry(okno)
 Ilosc.grid(row=14, column=6)
-Button(okno, text="potwierdź",command=zamow_lek).grid(row=14,column=7)
+Button(okno, text="potwierdź",command=zakup_lek).grid(row=14,column=7)
+
+###Wystawianie recepty
+Label(okno,text="Funkcje administratora").grid(row=15,column=1)
+Button(okno,text="Dodaj receptę",command=wystaw_receptę).grid(row=15,column=2)
 #koniec okna
 okno.mainloop() # generowanie obiektów okna
