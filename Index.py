@@ -98,10 +98,20 @@ def usun_lek():
 def utworz_txt_DATABASE(identyfikator,ImieINazwisko):
     os.makedirs("DATABASE",exist_ok=True)
     plik_txt=f"DATABASE/{identyfikator}.txt"
-    text=(f"Historia zamówień dla {identyfikator} , {ImieINazwisko}\n")
-    with open(plik_txt, "w", encoding="utf-8") as f:
-        f.write(text)
-
+    if not os.path.exists(plik_txt):
+        text=(f"Historia zamówień dla {identyfikator} , {ImieINazwisko}\n")
+        with open(plik_txt, "w", encoding="utf-8") as f:
+            f.write(text)
+def utworz_brakujace_database_txt():
+    df=pd.read_csv("customer.csv")
+    for _, row in df.iterrows():
+        identyfikator=row["ID"]
+        imie_nazwisko= row["NAME"]
+        plik_txt=f"DATABASE/{identyfikator}.txt"
+        if not os.path.exists(plik_txt):
+            text = (f"Historia zamówień dla {identyfikator} , {imie_nazwisko}\n")
+            with open(plik_txt, "w", encoding="utf-8") as f:
+                f.write(text)
 def rejestruj_uzytkownika():
     try:
         imie_nazwisko = ImieINazwisko.get().strip()
@@ -321,14 +331,15 @@ def wystaw_receptę():
             "leki": leki,
             "kod_recepty": kod_recepty,
             "Data wystawienia":data_wystawienia.strftime("%Y-%m-%d %H:%M:%S"),
-            "Ważna do":data_waznosci.strftime("%Y-%m-%d %H:%M:%S")
+            "Ważna do":data_waznosci.strftime("%Y-%m-%d %H:%M:%S"),
+            "Zrealizowana":"NIE"
         }
         try:
             try:
                 df=pd.read_excel(plik_recepty)
             except FileNotFoundError:
                 ###jeśli nie istnieje plik tworzy nowy
-                df=pd.DataFrame(columns=["ID", "leki", "kod_recepty","Data wystawienia","Ważna do"])
+                df=pd.DataFrame(columns=["ID", "leki", "kod_recepty","Data wystawienia","Ważna do","Zrealizowana"])
             df=pd.concat([df,pd.DataFrame([dodaj_wpis])],ignore_index=True)
             df.to_excel(plik_recepty,index=False)
             messagebox.showinfo("Udało się",f"Recepta dodana: {kod_recepty}")
@@ -343,13 +354,15 @@ def dodanie_historii_leków(nazwa,ilosc,recepta,data_zakupu,data_waznosci,id):
     with open(plik_txt, "a", encoding="utf-8") as f:
         f.write(text)
 
-def zakup_lek():
-    nazwa_leku = NazwaLeku.get().strip()
-    ID_uzytkownika = IDZmnienna.get().strip()
+def zakup_lek_bez_recepty():
+    nazwa_leku = Nazwaleku.get().strip()
+    ID_uzytkownika = IDZmienna.get().strip()
     ilosc_zamowienie=Ilosc.get().strip()
+    na_recepte="NIE"
     ##dodanie obsługi błędów
     if not all([nazwa_leku, ID_uzytkownika,ilosc_zamowienie]):
         messagebox.showerror("Błąd","Muszą być uzupełnione wszystkie pola")
+        return
     try:
         # zamiana stringa na int
         ilosc_zamowienie = int(ilosc_zamowienie)
@@ -360,15 +373,19 @@ def zakup_lek():
     ##szukanie czy lek istnieje na liście
     lek=df[df["DRUG"]==nazwa_leku]
     if lek.empty:
-        print("Nie ma takiego leku w bazie")
+        messagebox.showerror("Błąd","Nie ma takiego leku w bazie")
         return
     znaleziony_lek=lek.iloc[0].to_dict()
     modyfikowana_ilosc=lek.index[0]
     ilosc_na_stanie=int(znaleziony_lek["NO_PACKAGES_AVAILABLE"])
-
+    na_recepte = znaleziony_lek["ON_RECEPT"]
+    ###sprawdzenie czy lek jest na receptę
+    if na_recepte!="NIE":
+        messagebox.showerror("Błąd","Lek jest tylko na receptę ")
+        return
     ##sprawdzenie czy jest lek na stanie
     if ilosc_zamowienie>ilosc_na_stanie:
-        print("Za mało na stanie!")
+        messagebox.showerror("Błąd","Za mało na stanie!")
         return
     ##aktulizacja ilości w execelu
     df.loc[modyfikowana_ilosc,"NO_PACKAGES_AVAILABLE"]=ilosc_na_stanie-ilosc_zamowienie
@@ -382,10 +399,89 @@ def zakup_lek():
     plik_txt = f"DATABASE/{ID_uzytkownika}.txt"
     ## wywołanie funkcji do zapisu zamówienia do txt
     dodanie_historii_leków(nazwa,ilosc_zamowienie,recepta,data_zakupu,data_waznosci,ID_uzytkownika)
+    messagebox.showinfo("Udało się","Zrealizowano usługę")
     ###czyszczenie danych
-    NazwaLeku.delete(0, END)
-    IDZmnienna.delete(0, END)
+    Nazwaleku.delete(0, END)
+    IDZmienna.delete(0, END)
     Ilosc.delete(0, END)
+
+def zakup_lek_z_recepty():
+    ID_uzytkownika = IDZmienna_recepta.get().strip()
+    ID_int = int(ID_uzytkownika)
+    kod_recepty=KodRecepty.get().strip()
+    ##dodanie obsługi błędów
+    if not all([ID_int,kod_recepty]):
+        messagebox.showerror("Błąd","Muszą być uzupełnione wszystkie pola")
+        return
+    ###Odczyt z pliku recepty czy dane się zgadzają
+    df_recepty=pd.read_excel("recepty.xlsx")
+    recepta=df_recepty[
+        (df_recepty["ID"]==ID_int) &
+        (df_recepty["kod_recepty"]==kod_recepty)
+    ]
+    ###Nie znaleziono recepty
+    if recepta.empty:
+        messagebox.showerror("Błąd","Nie ma takiej recepty dla tego ID")
+        return
+    #####Sprawdzenie czy nie mineła data realizacji recepty
+    recepta=recepta.iloc[0]
+    data_waznosci=pd.to_datetime(recepta["Ważna do"])
+    if datetime.now()>data_waznosci:
+        messagebox.showerror("Błąd","Czas realizacji recepty wygasł")
+        return
+    ###Sprawdzenie czy recepta nie została już zrealizowana
+    if recepta.get("Zrealizowana","NIE")=="TAK":
+        messagebox.showerror("Błąd","Ta recepta już została zrealizowana")
+        return
+    leki_z_recepty=[lek.strip() for lek in recepta["leki"].split(",")]
+    df_leki=pd.read_excel("drugs.xlsx")
+    data_zakupu = datetime.now().strftime("%Y-%m-%d")
+    ##szukanie czy lek istnieje na liście
+    for nazwa_leku in leki_z_recepty:
+        lek=df_leki[df_leki["DRUG"]==nazwa_leku]
+        if lek.empty:
+            print("Nie ma takiego leku w bazie")
+            return
+        znaleziony_lek=lek.iloc[0].to_dict()
+        modyfikowana_ilosc=lek.index[0]
+        ilosc_na_stanie=int(znaleziony_lek["NO_PACKAGES_AVAILABLE"])
+        ilosc_na_recepcie=1
+        ##sprawdzenie czy jest lek na stanie
+        if ilosc_na_recepcie>ilosc_na_stanie:
+            print("Za mało na stanie!")
+            return
+        ##aktulizacja ilości w execelu
+        df_leki.loc[modyfikowana_ilosc,"NO_PACKAGES_AVAILABLE"]=ilosc_na_stanie-ilosc_na_recepcie
+        recepta=znaleziony_lek.get("ON_RECEPT","TAK")
+        data_waznosci=znaleziony_lek.get("DATE","")
+    ## wywołanie funkcji do zapisu zamówienia do txt
+        dodanie_historii_leków(nazwa_leku,ilosc_na_recepcie,recepta,data_zakupu,data_waznosci,ID_uzytkownika)
+    df_leki.to_excel("drugs.xlsx", index=False)
+    ###Aktualizacja statusu recepty
+    df_recepty.loc[(df_recepty["ID"]==ID_int)&(df_recepty["kod_recepty"]==kod_recepty),"Zrealizowana"]="TAK"
+    df_recepty.to_excel("recepty.xlsx", index=False)
+    messagebox.showinfo("Udało się","Zrealizowano receptę")
+    ###czyszczenie danych
+    IDZmienna.delete(0, END)
+    KodRecepty.delete(0,END)
+    ####Funkcje wywołujące odpowiedni formularz do zakupu
+def pokaz_z_recepta():
+    bez_recepty_frame.grid_remove()
+    z_recepta_frame.grid(row=14,column=1)
+
+def pokaz_bez_recepty():
+    z_recepta_frame.grid_remove()
+    bez_recepty_frame.grid(row=14,column=1)
+    ###Funkcja do zmiany wyboru
+def wybor_zakupu():
+        if wybor.get()=="tak":
+            pokaz_z_recepta()
+        elif wybor.get()=="nie":
+            pokaz_bez_recepty()
+
+###Dodanie brakujących kart do DATABASE
+utworz_brakujace_database_txt()
+
 
 #Dodanie leku
 Label(okno, text="Dodanie leku: ").grid(row=1, column=1)
@@ -501,18 +597,37 @@ PanstwoZmiana.grid(row=12, column=12)
 Button(okno, text="Zmień", command=edytuj_uzytkownika).grid(row=12, column=13)
 
 ###Zakup leku
-Label(okno,text="Zamów lek: ").grid(row=13,column=1)
-Label(okno, text="Nazwa leku: ").grid(row=14,column=1)
-NazwaLeku=Entry(okno)
-NazwaLeku.grid(row=14, column=2)
-Label(okno,text="ID: ").grid(row=14, column=3)
-IDZmnienna=Entry(okno)
-IDZmnienna.grid(row=14, column=4)
-Label(okno,text="Ilość: ").grid(row=14, column=5)
-Ilosc=Entry(okno)
-Ilosc.grid(row=14, column=6)
-Button(okno, text="potwierdź",command=zakup_lek).grid(row=14,column=7)
+Label(okno,text="Zakup lek: ").grid(row=13,column=1)
+Label(okno,text="Czy posiadasz receptę?").grid(row=13,column=2)
+wybor=StringVar(value="")
+Radiobutton(okno,text="Tak",variable=wybor,value="tak",command=wybor_zakupu).grid(row=13,column=3)
+Radiobutton(okno,text="Nie",variable=wybor,value="nie",command=wybor_zakupu).grid(row=13,column=4)
 
+####Z receptą
+bez_recepty_frame=Frame(okno)
+Label(bez_recepty_frame,text="Nazwa leku:").grid(row=0,column=1)
+Nazwaleku=Entry(bez_recepty_frame)
+Nazwaleku.grid(row=0,column=2)
+Label(bez_recepty_frame,text="ID użytkownika:").grid(row=1,column=1)
+IDZmienna= Entry(bez_recepty_frame)
+IDZmienna.grid(row=1,column=2)
+Label(bez_recepty_frame,text="Ilość:").grid(row=2,column=1)
+Ilosc=Entry(bez_recepty_frame)
+Ilosc.grid(row=2,column=2)
+Button(bez_recepty_frame,text="Kupuję",command=zakup_lek_bez_recepty).grid(row=3,column=2)
+
+####Bez recepty
+z_recepta_frame=Frame(okno)
+Label(z_recepta_frame,text="ID użytkownika").grid(row=0,column=1)
+IDZmienna_recepta=Entry(z_recepta_frame)
+IDZmienna_recepta.grid(row=0,column=2)
+Label(z_recepta_frame,text="Kod recepty :").grid(row=1,column=1)
+KodRecepty=Entry(z_recepta_frame)
+KodRecepty.grid(row=1,column=2)
+Button(z_recepta_frame,text="Kupuje",command=zakup_lek_z_recepty).grid(row=2,column=2)
+###Ukrywanie formularzy
+bez_recepty_frame.grid_remove()
+z_recepta_frame.grid_remove()
 ###Wystawianie recepty
 Label(okno,text="Funkcje administratora").grid(row=15,column=1)
 Button(okno,text="Dodaj receptę",command=wystaw_receptę).grid(row=15,column=2)

@@ -1,2 +1,4 @@
 Historia zamówień dla 207 , Monica John
 Zakupiono lek Paracetamol w ilości 2 na receptę: NIE zakupiony:2025-06-02 ważny do: 2017-11-25
+Zakupiono lek Paracetamol w ilości 1 na receptę: NIE zakupiony:2025-06-09 ważny do: 2017-11-25
+Zakupiono lek Warfaryna w ilości 1 na receptę: TAK zakupiony:2025-06-09 ważny do: 2019-07-22
