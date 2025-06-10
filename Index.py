@@ -219,6 +219,9 @@ def usun_uzytkownika():
             id_do_usuniecia = int(IDUzytkownika.get())
             df_customer = df_customer[df_customer["ID"] != id_do_usuniecia]
             df_address = df_address[df_address["ID"] != id_do_usuniecia]
+            # Usunięcie karty klienta z bazy
+            usun_z_bazy=f"DATABASE/{id_do_usuniecia}.txt"
+            os.remove(usun_z_bazy)
         except ValueError:
             return  # nieprawidłowe ID
 
@@ -358,7 +361,6 @@ def zakup_lek_bez_recepty():
     nazwa_leku = Nazwaleku.get().strip()
     ID_uzytkownika = IDZmienna.get().strip()
     ilosc_zamowienie=Ilosc.get().strip()
-    na_recepte="NIE"
     ##dodanie obsługi błędów
     if not all([nazwa_leku, ID_uzytkownika,ilosc_zamowienie]):
         messagebox.showerror("Błąd","Muszą być uzupełnione wszystkie pola")
