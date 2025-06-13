@@ -1,3 +1,15 @@
+"""
+Moduł GUI apteki.
+
+Ten skrypt uruchamia graficzny interfejs użytkownika (GUI) oparty na tkinterze, umożliwiający:
+- dodawanie leków do pliku Excel (`drugs.xlsx`)
+- usuwanie leków po ID lub nazwie
+- rejestrację użytkowników (GUI)
+- usuwanie i edycję użytkowników (GUI – bez logiki)
+- wizualne tło pobierane z Internetu (PIL)
+
+Wymagane biblioteki: tkinter, requests, pandas, PIL, os, datetime
+"""
 import tkinter as tk
 from tkinter import *
 import requests
@@ -29,6 +41,17 @@ background_label.image = bg_photo  # zapobiega usunięciu z pamięci
 # Funkcja dodająca lek do pliku Excel
 
 def dodaj_lek():
+     """
+       Dodaje nowy lek do pliku Excel `drugs.xlsx`.
+
+       Funkcja pobiera dane z pól wejściowych (nazwa, recepta, ilość),
+       tworzy nowy wiersz z aktualną datą i zapisuje do pliku Excel.
+
+       Jeśli plik nie istnieje, zostaje utworzony.
+
+       Returns:
+           None
+       """
     nazwa = NazwaEntry.get()
     recepta = ReceptaEntry.get()
     ilosc = IloscEntry.get()
@@ -70,6 +93,18 @@ def dodaj_lek():
     IloscEntry.delete(0, END)
 
 def usun_lek():
+        """
+        Usuwa lek z pliku Excel `drugs.xlsx`.
+
+        Można usunąć lek na dwa sposoby:
+        - przez ID (jeśli zaznaczono odpowiednią opcję)
+        - przez nazwę (ignorując wielkość liter)
+
+        Jeśli plik nie istnieje lub dane są niepoprawne – funkcja kończy działanie.
+
+        Returns:
+            None
+        """
     filepath = "drugs.xlsx"
 
     if not os.path.exists(filepath):
