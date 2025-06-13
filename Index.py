@@ -30,6 +30,11 @@ style.configure("TButton", font=("Segoe UI", 10))
 style.configure("TEntry", font=("Segoe UI", 10))
 
 # Tło
+"""
+Pobiera i wyświetla tło graficzne aplikacji.
+Pobierane z zewnętrznego URL i skalowane do rozmiaru okna.
+Wyświetlane jako obraz w tle z użyciem biblioteki PIL i tkinter.
+"""
 url = 'https://www.sentimed.pl/wp-content/uploads/2018/05/Fotolia_45326423_XL.jpg'
 img_path = "tabletki.jpg"
 if not os.path.exists(img_path):
