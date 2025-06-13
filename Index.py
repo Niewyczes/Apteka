@@ -1,80 +1,67 @@
-"""
-Moduł GUI apteki.
-
-Ten skrypt uruchamia graficzny interfejs użytkownika (GUI) oparty na tkinterze, umożliwiający:
-- dodawanie leków do pliku Excel (`drugs.xlsx`)
-- usuwanie leków po ID lub nazwie
-- rejestrację użytkowników (GUI)
-- usuwanie i edycję użytkowników (GUI – bez logiki)
-- wizualne tło pobierane z Internetu (PIL)
-
-Wymagane biblioteki: tkinter, requests, pandas, PIL, os, datetime
-"""
-
 import tkinter as tk
-from tkinter import *
-import requests
+from tkinter import ttk
 import pandas as pd
-from PIL import Image, ImageTk
 import os
 from datetime import datetime
+import requests
+from PIL import Image, ImageTk
 
-# Tworzenie głównego okna aplikacji
-okno = Tk() # tworzenie głównego okna
-okno.title("Apteka") # tytuł okna
-okno.geometry("1200x600") # rozmiar okna
+# Główne okno
+root = tk.Tk()
+root.title("Apteka")
+root.geometry("1100x700")
+root.configure(bg="white")
 
-#TŁO – pobranie i ustawienie obrazka z internetu jako tło
-url1 = 'https://www.sentimed.pl/wp-content/uploads/2018/05/Fotolia_45326423_XL.jpg'
-response = requests.get(url1, stream=True)
-if response.status_code == 200:
-    with open("tabletki.jpg", 'wb') as f:
-        f.write(response.content)
+style = ttk.Style()
+style.configure("TLabel", font=("Segoe UI", 10))
+style.configure("TButton", font=("Segoe UI", 10))
+style.configure("TEntry", font=("Segoe UI", 10))
 
-bg_image = Image.open("tabletki.jpg")
-bg_image = bg_image.resize((700, 500))  # dopasuj do okna
-bg_photo = ImageTk.PhotoImage(bg_image)
-background_label = Label(okno, image=bg_photo)
-background_label.place(x=0, y=0, relwidth=1, relheight=1)
-background_label.image = bg_photo  # zapobiega usunięciu z pamięci
+# Tło
+url = 'https://www.sentimed.pl/wp-content/uploads/2018/05/Fotolia_45326423_XL.jpg'
+img_path = "tabletki.jpg"
+if not os.path.exists(img_path):
+    r = requests.get(url, stream=True)
+    if r.status_code == 200:
+        with open(img_path, 'wb') as f:
+            f.write(r.content)
 
-# Funkcja dodająca lek do pliku Excel
+bg_img = Image.open(img_path).resize((1100, 700))
+bg_photo = ImageTk.PhotoImage(bg_img)
+bg_label = tk.Label(root, image=bg_photo)
+bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+bg_label.lower()
+
+# ====================== SEKJA: DODAJ LEK ======================
+frame_dodaj = ttk.LabelFrame(root, text="Dodanie leku", padding=15)
+frame_dodaj.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
+
+ttk.Label(frame_dodaj, text="Nazwa:").grid(row=0, column=0)
+entry_nazwa = ttk.Entry(frame_dodaj)
+entry_nazwa.grid(row=0, column=1, padx=5)
+
+ttk.Label(frame_dodaj, text="Recepta:").grid(row=0, column=2)
+entry_recepta = ttk.Entry(frame_dodaj)
+entry_recepta.grid(row=0, column=3, padx=5)
+
+ttk.Label(frame_dodaj, text="Ilość:").grid(row=0, column=4)
+entry_ilosc = ttk.Entry(frame_dodaj)
+entry_ilosc.grid(row=0, column=5, padx=5)
 
 def dodaj_lek():
-    """
-       Dodaje nowy lek do pliku Excel `drugs.xlsx`.
-
-       Funkcja pobiera dane z pól wejściowych (nazwa, recepta, ilość),
-       tworzy nowy wiersz z aktualną datą i zapisuje do pliku Excel.
-
-       Jeśli plik nie istnieje, zostaje utworzony.
-
-       Returns:
-           None
-       """
-    nazwa = NazwaEntry.get()
-    recepta = ReceptaEntry.get()
-    ilosc = IloscEntry.get()
-
-    # Ścieżka do pliku
+    nazwa = entry_nazwa.get()
+    recepta = entry_recepta.get()
+    ilosc = entry_ilosc.get()
     filepath = "drugs.xlsx"
 
-    # Wczytaj dane
     if os.path.exists(filepath):
         df = pd.read_excel(filepath)
     else:
         df = pd.DataFrame(columns=["ID", "DRUG", "ON_RECEPT", "NO_PACKAGES_AVAILABLE", "DATE"])
 
-    # Ustal nowe ID
-    if df.empty:
-        new_id = 1
-    else:
-        new_id = df["ID"].max() + 1
-
-    # Bieżąca data
+    new_id = 1 if df.empty else df["ID"].max() + 1
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Nowy wiersz
     nowy_lek = {
         "ID": new_id,
         "DRUG": nazwa,
@@ -83,164 +70,79 @@ def dodaj_lek():
         "DATE": current_date
     }
 
-    # Dodaj i zapisz
-    df = pd.concat([df, pd.DataFrame([nowy_lek])], ignore_index=True)
+    filepath = "drugs.xlsx"
+    df = pd.read_excel(filepath) if os.path.exists(filepath) else pd.DataFrame(
+        columns=["ID", "DRUG", "ON_RECEPT", "NO_PACKAGES_AVAILABLE", "DATE"]
+    )
+
+    new_id = 1 if df.empty else df["ID"].max() + 1
+    new_row = {
+        "ID": new_id,
+        "DRUG": nazwa,
+        "ON_RECEPT": recepta,
+        "NO_PACKAGES_AVAILABLE": ilosc,
+        "DATE": datetime.now().strftime("%Y-%m-%d")
+    }
+
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_excel(filepath, index=False)
 
-    # Czyść pola
-    NazwaEntry.delete(0, END)
-    ReceptaEntry.delete(0, END)
-    IloscEntry.delete(0, END)
+    entry_nazwa.delete(0, tk.END)
+    entry_recepta.delete(0, tk.END)
+    entry_ilosc.delete(0, tk.END)
+
+ttk.Button(frame_dodaj, text="Dodaj", command=dodaj_lek).grid(row=0, column=6, padx=10)
+
+# ====================== SEKJA: USUŃ LEK ======================
+frame_usun = ttk.LabelFrame(root, text="Usunięcie leku", padding=15)
+frame_usun.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+
+usun_var = tk.IntVar(value=1)
+
+ttk.Radiobutton(frame_usun, text="Po ID", variable=usun_var, value=1).grid(row=0, column=0)
+entry_id = ttk.Entry(frame_usun)
+entry_id.grid(row=0, column=1, padx=5)
+
+ttk.Radiobutton(frame_usun, text="Po nazwie", variable=usun_var, value=2).grid(row=0, column=2)
+entry_nazwa_usun = ttk.Entry(frame_usun)
+entry_nazwa_usun.grid(row=0, column=3, padx=5)
 
 def usun_lek():
-    """
-        Usuwa lek z pliku Excel `drugs.xlsx`.
-
-        Można usunąć lek na dwa sposoby:
-        - przez ID (jeśli zaznaczono odpowiednią opcję)
-        - przez nazwę (ignorując wielkość liter)
-
-        Jeśli plik nie istnieje lub dane są niepoprawne – funkcja kończy działanie.
-
-        Returns:
-            None
-        """
     filepath = "drugs.xlsx"
-
-    if not os.path.exists(filepath):
-        return  # nie ma pliku – nic do usuwania
+    if not os.path.exists(filepath): return
 
     df = pd.read_excel(filepath)
 
-    if var.get() == 1:  # Usuwanie po ID
+    if usun_var.get() == 1:
         try:
-            id_do_usuniecia = int(ID.get())
-            df = df[df["ID"] != id_do_usuniecia]
+            id_val = int(entry_id.get())
+            df = df[df["ID"] != id_val]
         except ValueError:
-            return  # nieprawidłowy ID (np. puste lub litery)
-
-    elif var.get() == 2:  # Usuwanie po nazwie
-        nazwa = NazwaDoUsuniecia.get().strip().lower()
+            return
+    elif usun_var.get() == 2:
+        nazwa = entry_nazwa_usun.get().strip().lower()
         df = df[df["DRUG"].str.lower() != nazwa]
 
     df.to_excel(filepath, index=False)
+    entry_id.delete(0, tk.END)
+    entry_nazwa_usun.delete(0, tk.END)
 
-    # Wyczyść pola
-    ID.delete(0, END)
-    NazwaDoUsuniecia.delete(0, END)
+ttk.Button(frame_usun, text="Usuń", command=usun_lek).grid(row=0, column=4, padx=10)
 
-#Dodanie leku
-Label(okno, text="Dodanie leku: ").grid(row=1, column=1)
+# ====================== SEKJA: REJESTRACJA ======================
+frame_rejestracja = ttk.LabelFrame(root, text="Rejestracja użytkownika", padding=15)
+frame_rejestracja.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
 
-Label(okno, text="Nazwa:").grid(row=2, column=1)
-NazwaEntry = Entry(okno)
-NazwaEntry.grid(row=2, column=2)
+labels = ["Imię i Nazwisko", "Email", "Telefon", "Ulica", "Miasto", "Państwo"]
+entries = {}
 
-Label(okno, text="Recepta:").grid(row=2, column=3)
-ReceptaEntry = Entry(okno)
-ReceptaEntry.grid(row=2, column=4)
+for i, label in enumerate(labels):
+    ttk.Label(frame_rejestracja, text=f"{label}:").grid(row=0, column=i)
+    entry = ttk.Entry(frame_rejestracja, width=15)
+    entry.grid(row=1, column=i, padx=3)
+    entries[label] = entry
 
-Label(okno, text="Ilość:").grid(row=2, column=5)
-IloscEntry = Entry(okno)
-IloscEntry.grid(row=2, column=6)
+ttk.Button(frame_rejestracja, text="Rejestruj").grid(row=1, column=len(labels), padx=10)
 
-Button(okno , text = "Dodaj", command=dodaj_lek).grid(row = 2,column = 7)
-
-# Usunięcie leku
-LabelLeki = Label(okno, text="Usunięcie leku: ").grid(row=4, column=1)
-
-var = IntVar()
-Radiobutton(okno, text="ID:", variable=var, value=1).grid(row=5, column=1)
-ID = Entry(okno)
-ID.grid(row=5, column=2)
-
-Radiobutton(okno, text="Nazwa:", variable=var, value=2).grid(row=5, column=3)
-NazwaDoUsuniecia = Entry(okno)
-NazwaDoUsuniecia.grid(row=5, column=4)
-
-Button(okno, text="Usuń", command=usun_lek).grid(row=5, column=5)
-
-#Rejestracja
-Label(okno, text="Rejestracja: ").grid(row=6, column=1)
-
-Label(okno, text="Imię i Nazwisko:").grid(row=7, column=1)
-ImieINazwisko = Entry(okno,)
-ImieINazwisko.grid(row=7, column=2)
-
-Label(okno, text="Email:").grid(row=7, column=3)
-Email = Entry(okno,)
-Email.grid(row=7, column=4)
-
-Label(okno, text="Telefon:").grid(row=7, column=5)
-Telefon = Entry(okno,)
-Telefon.grid(row=7, column=6)
-
-Label(okno, text="Ulica:").grid(row=7, column=7)
-Ulica = Entry(okno,)
-Ulica.grid(row=7, column=8)
-
-Label(okno, text="Miasto:").grid(row=7, column=9)
-Miasto = Entry(okno,)
-Miasto.grid(row=7, column=10)
-
-Label(okno, text="Państwo:").grid(row=7, column=11)
-Panstwo = Entry(okno,)
-Panstwo.grid(row=7, column=12)
-
-Button(okno , text = "Rejestruj").grid(row = 7,column = 13) #command = Rejestracja,
-
-# Usunięcie użytkownika
-Label(okno, text="Usunięcie użytkownika: ").grid(row=8, column=1)
-var1 = IntVar()
-
-Radiobutton(okno, text="ID:", variable=var1, value=1).grid(row=9, column=1)
-IDUzytkownika = Entry(okno)
-IDUzytkownika.grid(row=9, column=2)
-
-Radiobutton(okno, text="Nazwa:", variable=var1, value=2).grid(row=9, column=3)
-NazwaDoUsunieciaUzytkownika = Entry(okno)
-NazwaDoUsunieciaUzytkownika.grid(row=9, column=4)
-
-Button(okno, text="Usuń").grid(row=9, column=5)
-
-#Edycja użytkownika
-
-Label(okno, text="Edycja użytkownika: ").grid(row=10, column=1)
-var2 = IntVar()
-
-Radiobutton(okno, text="ID:", variable=var2, value=1).grid(row=11, column=1)
-IDUzytkownikaZmiana = Entry(okno)
-IDUzytkownikaZmiana.grid(row=11, column=2)
-
-Radiobutton(okno, text="Nazwa:", variable=var2, value=2).grid(row=11, column=3)
-NazwaDoUsunieciaUzytkownikaZmiana = Entry(okno)
-NazwaDoUsunieciaUzytkownikaZmiana.grid(row=11, column=4)
-
-Label(okno, text="Imię i Nazwisko:").grid(row=12, column=1)
-ImieINazwiskoZmiana = Entry(okno)
-ImieINazwiskoZmiana.grid(row=12, column=2)
-
-Label(okno, text="Email:").grid(row=12, column=3)
-EmailZmiana = Entry(okno)
-EmailZmiana.grid(row=12, column=4)
-
-Label(okno, text="Telefon:").grid(row=12, column=5)
-TelefonZmiana = Entry(okno)
-TelefonZmiana.grid(row=12, column=6)
-
-Label(okno, text="Ulica:").grid(row=12, column=7)
-UlicaZmiana = Entry(okno)
-UlicaZmiana.grid(row=12, column=8)
-
-Label(okno, text="Miasto:").grid(row=12, column=9)
-MiastoZmiana = Entry(okno)
-MiastoZmiana.grid(row=12, column=10)
-
-Label(okno, text="Państwo:").grid(row=12, column=11)
-PanstwoZmiana = Entry(okno)
-PanstwoZmiana.grid(row=12, column=12)
-
-Button(okno, text="Zmień").grid(row=12, column=13)
-
-#koniec okna
-okno.mainloop() # generowanie obiektów okna
+# ====================== START GUI ======================
+root.mainloop()
